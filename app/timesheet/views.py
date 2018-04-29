@@ -1,8 +1,11 @@
-from flask import Blueprint, jsonify, json, request, abort
 import datetime
+
+from flask import Blueprint, jsonify, json, request, abort
+
+from ..config import DbConfig
 from ..db.db_manager_abc import DbManagerABC
 from ..db.mysql_db_manager import MySqlDbManager
-from ..config import DbConfig
+from ..token_auth import requires_auth
 
 
 def construct_timesheet(db_manager: DbManagerABC = None) -> Blueprint:
@@ -12,6 +15,7 @@ def construct_timesheet(db_manager: DbManagerABC = None) -> Blueprint:
         db_manager = MySqlDbManager(DbConfig)
 
     @timesheet.route('/fetch-timesheet/<employee>/<week>/<year>', methods=['GET'])
+    @requires_auth
     def fetch_timesheet(employee, week, year):
         tmsht_id = None
         task_list = []
@@ -70,6 +74,7 @@ def construct_timesheet(db_manager: DbManagerABC = None) -> Blueprint:
         return jsonify(workername=employee, week=week, year=year, id_tmsht=tmsht_id, tasks=task_list)
 
     @timesheet.route('/save-timesheet', methods=['POST'])
+    @requires_auth
     def save_timesheet():
         if not request.json:
             abort(400)
@@ -86,14 +91,17 @@ def construct_timesheet(db_manager: DbManagerABC = None) -> Blueprint:
         return "OK"
 
     @timesheet.route('/accept-timesheet/<id_tmsht>/<week>/<year>', methods=['GET'])
+    @requires_auth
     def accept_timesheet(id_tmsht, week, year):
         return update_status(id_tmsht, week, year, 'ACCEPTED')
 
     @timesheet.route('/decline-timesheet/<id_tmsht>/<week>/<year>', methods=['GET'])
+    @requires_auth
     def decline_timesheet(id_tmsht, week, year):
         return update_status(id_tmsht, week, year, 'REJECTED')
 
     @timesheet.route('/update-status/<id_tmsht>/<week>/<year>/<status>', methods=['GET'])
+    @requires_auth
     def update_status(id_tmsht, week, year, status):
         values_to_check = [id_tmsht, week, year]
         if any(value is None for value in values_to_check):

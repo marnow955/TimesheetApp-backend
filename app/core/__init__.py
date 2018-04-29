@@ -1,1 +1,1 @@
-from .views import core
+from .views import construct_core

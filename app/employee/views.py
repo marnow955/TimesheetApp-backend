@@ -1,7 +1,9 @@
 from flask import Blueprint, jsonify
+
+from ..config import DbConfig
 from ..db.db_manager_abc import DbManagerABC
 from ..db.mysql_db_manager import MySqlDbManager
-from ..config import DbConfig
+from ..token_auth import requires_auth
 
 
 def construct_employee(db_manager: DbManagerABC = None) -> Blueprint:
@@ -11,10 +13,11 @@ def construct_employee(db_manager: DbManagerABC = None) -> Blueprint:
         db_manager = MySqlDbManager(DbConfig)
 
     @employee.route('/fetch-employees', methods=['GET'])
+    @requires_auth
     def fetch_employees():
         employees_list = []
         try:
-            users = db_manager.select_from_table('users', ('username', ),
+            users = db_manager.select_from_table('users', ('username',),
                                                  'role=\'employee\'', False)
             for user in users:
                 user_dict = {'username': user[0]}

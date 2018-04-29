@@ -1,5 +1,6 @@
-from abc import ABC, abstractmethod
 import collections
+from abc import ABC, abstractmethod
+
 DbResult = collections.namedtuple('DbResult', ['rowcount', 'query_results'])
 
 

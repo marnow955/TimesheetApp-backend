@@ -1,7 +1,9 @@
 from flask import Blueprint, jsonify, json, request, abort
+
+from ..config import DbConfig
 from ..db.db_manager_abc import DbManagerABC
 from ..db.mysql_db_manager import MySqlDbManager
-from ..config import DbConfig
+from ..token_auth import requires_auth
 
 
 def construct_task(db_manager: DbManagerABC = None) -> Blueprint:
@@ -11,6 +13,7 @@ def construct_task(db_manager: DbManagerABC = None) -> Blueprint:
         db_manager = MySqlDbManager(DbConfig)
 
     @task.route('/fetch-tasks/<employer>', methods=['GET'])
+    @requires_auth
     def fetch_tasks(employer):
         tasks_list = []
         try:
@@ -34,6 +37,7 @@ def construct_task(db_manager: DbManagerABC = None) -> Blueprint:
         return jsonify(tasks=tasks_list)
 
     @task.route('/add-task/<employer>', methods=['POST'])
+    @requires_auth
     def add_task(employer):
         if not request.json:
             abort(400)
@@ -66,6 +70,7 @@ def construct_task(db_manager: DbManagerABC = None) -> Blueprint:
         return "OK"
 
     @task.route('/update-tasks', methods=['POST'])
+    @requires_auth
     def update_tasks():
         if not request.json:
             abort(400)
