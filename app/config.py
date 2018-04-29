@@ -8,4 +8,4 @@ class DbConfig(object):
     HOST = "localhost"
     USER = "root"
     PASSWORD = ""
-    DATABASE = "timesheet"
+    DATABASE = "timesheet_db"

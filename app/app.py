@@ -1,8 +1,9 @@
-from flask import Flask, Blueprint
+from flask import Flask
 
 from .core import core
 from .employee import construct_employee
-from .employer import construct_employer
+from .timesheet import construct_timesheet
+from .task import construct_task
 from .db.db_manager_abc import DbManagerABC
 from .db.mysql_db_manager import MySqlDbManager
 from .config import Config, DbConfig
@@ -15,7 +16,12 @@ def create_app(app_config=None, auth_config=None, app_name: str = None,
     if db_manager is None:
         db_manager = MySqlDbManager(DbConfig)
     if blueprints is None:
-        blueprints = (core, construct_employee(db_manager), construct_employer(db_manager))
+        blueprints = (
+            core,
+            construct_employee(db_manager),
+            construct_timesheet(db_manager),
+            construct_task(db_manager)
+        )
     if auth_config:
         pass
         # configure_auth(auth_config)
