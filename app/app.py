@@ -2,8 +2,7 @@ from flask import Flask
 
 from .config import Config, DbConfig
 from .core import construct_core
-from .db.db_manager_abc import DbManagerABC
-from .db.mysql_db_manager import MySqlDbManager
+from .db import DbManagerABC, MySqlDbManager
 from .employee import construct_employee
 from .task import construct_task
 from .timesheet import construct_timesheet

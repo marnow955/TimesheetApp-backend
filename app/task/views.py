@@ -1,27 +1,26 @@
 from flask import Blueprint, jsonify, json, request, abort
 
 from ..config import DbConfig
-from ..db.db_manager_abc import DbManagerABC
-from ..db.mysql_db_manager import MySqlDbManager
+from ..db import DbManagerABC, MySqlDbManager
 from ..token_auth import requires_auth
 
 
 def construct_task(db_manager: DbManagerABC = None) -> Blueprint:
-    task = Blueprint('task', __name__, url_prefix='/task')
+    task_blp = Blueprint('task', __name__, url_prefix='/task')
 
     if db_manager is None:
         db_manager = MySqlDbManager(DbConfig)
 
-    @task.route('/fetch-tasks/<employer>', methods=['GET'])
+    @task_blp.route('/fetch-tasks/<employer>', methods=['GET'])
     @requires_auth
     def fetch_tasks(employer):
         tasks_list = []
         try:
             timesheets = db_manager.select_from_table('timesheets', ('tsk_id', 'employee'),
-                                                      'employer=\'' + employer + '\'', False)
+                                                      'employer=\'' + employer + '\'')
             for tmsht in timesheets:
                 task_name, task_time = db_manager.select_from_table('tasks', ('title', 'time_limit'),
-                                                                    'task_id=\'' + str(tmsht[0]) + '\'', False)[0]
+                                                                    'task_id=\'' + str(tmsht[0]) + '\'')[0]
 
                 task_dict = {
                     'task_id': tmsht[0],
@@ -34,9 +33,10 @@ def construct_task(db_manager: DbManagerABC = None) -> Blueprint:
 
         except Exception as e:
             print(e)
+            abort(500)
         return jsonify(tasks=tasks_list)
 
-    @task.route('/add-task/<employer>', methods=['POST'])
+    @task_blp.route('/add-task/<employer>', methods=['POST'])
     @requires_auth
     def add_task(employer):
         if not request.json:
@@ -48,28 +48,27 @@ def construct_task(db_manager: DbManagerABC = None) -> Blueprint:
             abort(422)
         try:
             tsk_id = db_manager.insert_values('tasks', ('title', 'time_limit'),
-                                              (data_dict['task_name'], str(data_dict['time_limit'])), False)
+                                              (data_dict['task_name'], str(data_dict['time_limit'])))
             if tsk_id is 0:
                 abort(500)
             tmsht = db_manager.select_from_table('timesheets', ('id_tmsht',),
-                                                 'employee=\'' + str(data_dict['employee']) + '\'', False)
-            tmsht_id = 0
+                                                 'employee=\'' + str(data_dict['employee']) + '\'')
             if len(tmsht) is 0:
-                t_id = db_manager.select_from_table('timesheets', ('MAX(id_tmsht)',), join_transaction=False)[0][0]
+                t_id = db_manager.select_from_table('timesheets', ('MAX(id_tmsht)',))[0][0]
                 tmsht_id = t_id + 1
             else:
                 tmsht_id = tmsht[0][0]
             db_manager.insert_values('timesheets', ('id_tmsht', 'tsk_id', 'employee', 'employer'),
-                                     (str(tmsht_id), str(tsk_id), data_dict['employee'], employer), False)
+                                     (str(tmsht_id), str(tsk_id), data_dict['employee'], employer))
             if tmsht_id is 0:
-                db_manager.delete_rows('tasks', 'task_id=' + str(tsk_id), False)
+                db_manager.delete_rows('tasks', 'task_id=' + str(tsk_id))
                 abort(500)
         except Exception as e:
             print(e)
             abort(500)
         return "OK"
 
-    @task.route('/update-tasks', methods=['POST'])
+    @task_blp.route('/update-tasks', methods=['POST'])
     @requires_auth
     def update_tasks():
         if not request.json:
@@ -87,14 +86,14 @@ def construct_task(db_manager: DbManagerABC = None) -> Blueprint:
             for task in tasks:
                 update_count = db_manager.update_columns('tasks',
                                                          {'title': task['names'], 'time_limit': str(task['times'])},
-                                                         'task_id=' + str(task['ids']), False)
+                                                         'task_id=' + str(task['ids']))
                 if update_count is 0:
                     abort(500)
                 db_manager.update_columns('timesheets', {'employee': task['workers']},
-                                          'tsk_id=' + str(task['ids']), False)
+                                          'tsk_id=' + str(task['ids']))
         except Exception as e:
             print(e)
             abort(500)
         return "OK"
 
-    return task
+    return task_blp

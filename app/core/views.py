@@ -1,34 +1,40 @@
-from flask import Blueprint, jsonify, abort
+from flask import Blueprint, jsonify, json, request, abort
 
 from ..config import DbConfig
-from ..db.db_manager_abc import DbManagerABC
-from ..db.mysql_db_manager import MySqlDbManager
-from ..token_auth import generate_auth_token, check_auth, destroy_session
+from ..db import DbManagerABC, MySqlDbManager
+from ..token_auth import generate_auth_token, check_auth, remove_user
 
 
 def construct_core(db_manager: DbManagerABC = None) -> Blueprint:
-    core = Blueprint('core', __name__)
+    core_blp = Blueprint('core', __name__)
 
     if db_manager is None:
         db_manager = MySqlDbManager(DbConfig)
 
-    @core.route('/')
+    @core_blp.route('/')
     def index():
         return "TimesheetApp-backend"
 
-    @core.route('/login/<username>/<password>', methods=['GET'])
-    def login(username, password):
-        auth = check_auth(db_manager, username, password)
+    @core_blp.route('/login', methods=['POST'])
+    def login():
+        if not request.json:
+            abort(400)
+        data = request.data
+        data_dict = json.loads(data)
+        keys = ['username', 'password']
+        if any(key not in list(data_dict.keys()) for key in keys):
+            abort(422)
+        auth = check_auth(db_manager, data_dict['username'], data_dict['password'])
         if not auth:
             abort(401)
-        token = generate_auth_token(username)
+        token = generate_auth_token(data_dict['username'])
         role = db_manager.select_from_table('users', ('role',),
-                                            'username=\'' + username + '\'', False)[0][0]
-        return jsonify(username=username, role=role, token=token.decode('utf-8'))
+                                            'username=\'' + data_dict['username'] + '\'')[0][0]
+        return jsonify(username=data_dict['username'], role=role, token=token.decode('utf-8'))
 
-    @core.route('/logout', methods=['GET'])
+    @core_blp.route('/logout', methods=['GET', 'POST'])
     def logout():
-        destroy_session()
+        remove_user()
         return "OK"
 
-    return core
+    return core_blp

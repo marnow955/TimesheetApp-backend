@@ -6,7 +6,7 @@ from flask_session import Session, FileSystemSessionInterface
 from itsdangerous import (TimedJSONWebSignatureSerializer
                           as Serializer, BadSignature, SignatureExpired)
 
-from app.db.db_manager_abc import DbManagerABC
+from app.db import DbManagerABC
 from .config import Config, EXPIRATION_TIME
 
 
@@ -20,8 +20,7 @@ def configure_auth(app: Flask):
 
 
 def check_auth(db_manager: DbManagerABC, username: str, password: str):
-    db_result = db_manager.select_from_table('users', ('password',),
-                                             'username=\'' + username + '\'', False)
+    db_result = db_manager.select_from_table('users', ('password',), 'username=\'' + username + '\'')
     if len(db_result) != 1:
         return False
     user_password_hash = db_result[0][0]
@@ -33,8 +32,9 @@ def check_auth(db_manager: DbManagerABC, username: str, password: str):
 
 def generate_auth_token(username, expiration=EXPIRATION_TIME):
     s = Serializer(Config.SECRET_KEY, expires_in=expiration)
-    session['username'] = username
-    return s.dumps({'username': username})
+    token = s.dumps({'username': username})
+    session['auth'] = username + ':' + token.decode('utf-8')
+    return token
 
 
 def verify_auth_token(token):
@@ -45,9 +45,16 @@ def verify_auth_token(token):
         return False
     except BadSignature:
         return False
-    if session.get('username', None) == data['username']:
+    auth = session.get('auth', None)
+    if auth is None:
+        return False
+    if auth.split(':')[0] == data['username'] and auth.split(':')[1] == token:
         return True
     return False
+
+
+def remove_user():
+    session.pop('auth', None)
 
 
 def destroy_session():
