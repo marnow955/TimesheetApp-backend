@@ -1,4 +1,5 @@
 from flask import Flask
+from flask_cors import CORS
 
 from .config import Config, DbConfig
 from .core import construct_core
@@ -23,9 +24,10 @@ def create_app(app_config=None, app_name: str = None,
             construct_task(db_manager)
         )
     app = Flask(app_name)
+    cors = CORS(app)
     configure_app(app, app_config)
     register_blueprints(app, blueprints)
-    configure_auth(app)
+    configure_auth(db_manager)
     return app
 
 

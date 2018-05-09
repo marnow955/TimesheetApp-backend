@@ -1,4 +1,5 @@
 from flask import Blueprint, jsonify, json, request, abort
+from flask_cors import cross_origin
 
 from ..config import DbConfig
 from ..db import DbManagerABC, MySqlDbManager
@@ -16,6 +17,7 @@ def construct_core(db_manager: DbManagerABC = None) -> Blueprint:
         return "TimesheetApp-backend"
 
     @core_blp.route('/login', methods=['POST'])
+    @cross_origin()
     def login():
         if not request.json:
             abort(400)
@@ -24,7 +26,7 @@ def construct_core(db_manager: DbManagerABC = None) -> Blueprint:
         keys = ['username', 'password']
         if any(key not in list(data_dict.keys()) for key in keys):
             abort(422)
-        auth = check_auth(db_manager, data_dict['username'], data_dict['password'])
+        auth = check_auth(data_dict['username'], data_dict['password'])
         if not auth:
             abort(401)
         token = generate_auth_token(data_dict['username'])
@@ -33,8 +35,10 @@ def construct_core(db_manager: DbManagerABC = None) -> Blueprint:
         return jsonify(username=data_dict['username'], role=role, token=token.decode('utf-8'))
 
     @core_blp.route('/logout', methods=['GET', 'POST'])
+    @cross_origin()
     def logout():
-        remove_user()
+        token = request.headers.get('Token')
+        remove_user(token)
         return "OK"
 
     return core_blp

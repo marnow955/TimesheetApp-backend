@@ -1,6 +1,7 @@
 import datetime
 
 from flask import Blueprint, jsonify, json, request, abort
+from flask_cors import cross_origin
 
 from ..config import DbConfig
 from ..db import DbManagerABC, MySqlDbManager
@@ -14,6 +15,7 @@ def construct_timesheet(db_manager: DbManagerABC = None) -> Blueprint:
         db_manager = MySqlDbManager(DbConfig)
 
     @timesheet_blp.route('/fetch-timesheet/<employee>/<week>/<year>', methods=['GET'])
+    @cross_origin()
     @requires_auth
     def fetch_timesheet(employee, week, year):
         tmsht_id = None
@@ -71,6 +73,7 @@ def construct_timesheet(db_manager: DbManagerABC = None) -> Blueprint:
         return jsonify(workername=employee, week=week, year=year, id_tmsht=tmsht_id, tasks=task_list)
 
     @timesheet_blp.route('/save-timesheet', methods=['POST'])
+    @cross_origin()
     @requires_auth
     def save_timesheet():
         if not request.json:
@@ -115,21 +118,25 @@ def construct_timesheet(db_manager: DbManagerABC = None) -> Blueprint:
         return "OK"
 
     @timesheet_blp.route('/send-timesheet/<id_tmsht>/<week>/<year>', methods=['GET'])
+    @cross_origin()
     @requires_auth
     def send_timesheet(id_tmsht, week, year):
         return update_status(id_tmsht, week, year, 'SEND')
 
     @timesheet_blp.route('/accept-timesheet/<id_tmsht>/<week>/<year>', methods=['GET'])
+    @cross_origin()
     @requires_auth
     def accept_timesheet(id_tmsht, week, year):
         return update_status(id_tmsht, week, year, 'ACCEPTED')
 
     @timesheet_blp.route('/decline-timesheet/<id_tmsht>/<week>/<year>', methods=['GET'])
+    @cross_origin()
     @requires_auth
     def decline_timesheet(id_tmsht, week, year):
         return update_status(id_tmsht, week, year, 'REJECTED')
 
     @timesheet_blp.route('/update-status/<id_tmsht>/<week>/<year>/<status>', methods=['GET'])
+    @cross_origin()
     @requires_auth
     def update_status(id_tmsht, week, year, status):
         values_to_check = [id_tmsht, week, year]

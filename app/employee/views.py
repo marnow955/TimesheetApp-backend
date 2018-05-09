@@ -1,4 +1,5 @@
 from flask import Blueprint, jsonify, abort
+from flask_cors import cross_origin
 
 from ..config import DbConfig
 from ..db import DbManagerABC, MySqlDbManager
@@ -12,6 +13,7 @@ def construct_employee(db_manager: DbManagerABC = None) -> Blueprint:
         db_manager = MySqlDbManager(DbConfig)
 
     @employee_blp.route('/fetch-employees', methods=['GET'])
+    @cross_origin()
     @requires_auth
     def fetch_employees():
         employees_list = []
