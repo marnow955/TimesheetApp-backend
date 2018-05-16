@@ -12,10 +12,10 @@ def construct_task(db_manager: DbManagerABC = None) -> Blueprint:
     if db_manager is None:
         db_manager = MySqlDbManager(DbConfig)
 
-    @task_blp.route('/fetch-tasks/<employer>', methods=['GET'])
+    @task_blp.route('/employer/fetch-tasks/<employer>', methods=['GET'])
     @cross_origin()
     @requires_auth
-    def fetch_tasks(employer):
+    def fetch_employer_tasks(employer):
         tasks_list = []
         try:
             timesheets = db_manager.select_from_table('timesheets', ('tsk_id', 'employee'),
@@ -25,10 +25,8 @@ def construct_task(db_manager: DbManagerABC = None) -> Blueprint:
                                                                     'task_id=\'' + str(tmsht[0]) + '\'')[0]
 
                 task_dict = {
-                    'task_id': tmsht[0],
-                    'task_name': task_name,
-                    'task_time': task_time,
-                    'employee': tmsht[1]
+                    'id': tmsht[0],
+                    'name': task_name
                 }
 
                 tasks_list.append(task_dict)
@@ -37,6 +35,85 @@ def construct_task(db_manager: DbManagerABC = None) -> Blueprint:
             print(e)
             abort(500)
         return jsonify(tasks=tasks_list)
+
+    @task_blp.route('/employee/fetch-tasks/<employee>', methods=['GET'])
+    @cross_origin()
+    @requires_auth
+    def fetch_employee_tasks(employee):
+        tasks_list = []
+        try:
+            timesheets = db_manager.select_from_table('timesheets', ('tsk_id',),
+                                                      'employee=\'' + employee + '\'')
+            for tmsht in timesheets:
+                task_name = db_manager.select_from_table('tasks', ('title',),
+                                                         'task_id=\'' + str(tmsht[0]) + '\'')[0][0]
+                tasks_list.append(task_name)
+
+        except Exception as e:
+            print(e)
+            abort(500)
+        return jsonify(tasks=tasks_list)
+
+    @task_blp.route('/fetch-details', methods=['POST'])
+    @cross_origin()
+    @requires_auth
+    def fetch_details():
+        task_time = None
+        employee = None
+        if not request.json:
+            abort(400)
+        data = request.data
+        data_dict = json.loads(data)
+        keys = ['task']
+        if any(key not in list(data_dict.keys()) for key in keys):
+            abort(422)
+        try:
+            task_id = db_manager.select_from_table('tasks', ('task_id',),
+                                                   'title=\'' + data_dict['task'] + '\'')
+            if len(task_id) is not 1 and len(task_id[0]) is not 1:
+                abort(500)
+            employee = db_manager.select_from_table('timesheets', ('employee',),
+                                                    'tsk_id=\'' + str(task_id[0][0]) + '\'')
+            if len(employee) is not 1 and len(employee[0]) is not 1:
+                abort(500)
+            task_time = db_manager.select_from_table('tasks', ('time_limit',),
+                                                     'task_id=\'' + str(task_id[0][0]) + '\'')
+            if len(task_time) is not 1 and len(task_time[0]) is not 1:
+                abort(500)
+
+        except Exception as e:
+            print(e)
+            abort(500)
+        return jsonify(time=task_time[0][0], worker=employee[0][0])
+
+    @task_blp.route('/update-details', methods=['POST'])
+    @cross_origin()
+    @requires_auth
+    def update_details():
+        if not request.json:
+            abort(400)
+        data = request.data
+        data_dict = json.loads(data)
+        keys = ['task', 'time', 'worker']
+        if any(key not in list(data_dict.keys()) for key in keys):
+            abort(422)
+        try:
+            worker_exist = db_manager.select_from_table('users', ('*',), 'username=\'' + data_dict['worker'] + '\'')
+            if len(worker_exist) is not 1:
+                abort(422)
+            task_id = db_manager.select_from_table('tasks', ('task_id',),
+                                                   'title=\'' + data_dict['task'] + '\'')
+            if len(task_id) is not 1 and len(task_id[0]) is not 1:
+                abort(500)
+            db_manager.update_columns('tasks', {'time_limit': str(data_dict['time'])},
+                                      'task_id=' + str(task_id[0][0]))
+            db_manager.update_columns('timesheets', {'employee': data_dict['worker']},
+                                      'tsk_id=' + str(task_id[0][0]))
+
+        except Exception as e:
+            print(e)
+            abort(500)
+        return "OK"
 
     @task_blp.route('/add-task/<employer>', methods=['POST'])
     @cross_origin()
