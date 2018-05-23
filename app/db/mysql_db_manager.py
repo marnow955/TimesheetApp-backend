@@ -10,7 +10,7 @@ class MySqlDbManager(DbManagerABC):
 
     def connect(self):
         self._conn = MySQLdb.connect(host=self._config.HOST, user=self._config.USER,
-                                     passwd=self._config.PASSWORD, db=self._config.DATABASE)
+                                     passwd=self._config.PASSWORD, db=self._config.DATABASE, charset='utf8')
         self._conn.autocommit(False)
 
     def disconnect(self):
